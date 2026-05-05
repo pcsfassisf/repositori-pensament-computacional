@@ -107,7 +107,6 @@
             const optionsCurs = useMemo(() => ['Tots', ...new Set(data.map(i => getFieldValue(i, ['curs', 'nivell'])).filter(Boolean))].sort(), [data]);
             const optionsMaterial = useMemo(() => ['Tots', ...new Set(data.map(i => getFieldValue(i, ['material'])).filter(Boolean))].sort(), [data]);
             
-            // Generem opcions sense duplicats per majúscules/minúscules
             const optionsParaulesClau = useMemo(() => {
                 const kwsMap = new Map();
                 data.forEach(i => {
@@ -120,17 +119,28 @@
             }, [data]);
 
             const filteredData = data.filter(item => {
+                // Obtenim textos per a la cerca general
                 const valTitol = getFieldValue(item, ['titol', 'títol']).toLowerCase();
                 const valDesc = getFieldValue(item, ['descripcio', 'descripció']).toLowerCase();
-                const valKws = extractKeywords(item).join(' ').toLowerCase();
-                const search = searchTerm.toLowerCase();
+                const arrayKeywords = extractKeywords(item).map(k => k.toLowerCase());
+                const search = searchTerm.toLowerCase().trim();
 
-                const matchSearch = search === '' || valTitol.includes(search) || valDesc.includes(search) || valKws.includes(search);
-                const matchCurs = cursFilter === 'Tots' || getFieldValue(item, ['curs']).toLowerCase() === cursFilter.toLowerCase();
-                const matchMat = materialFilter === 'Tots' || getFieldValue(item, ['material']).toLowerCase() === materialFilter.toLowerCase();
+                // 1. Cerca general (match parcial en titol, descripció o qualsevol paraula clau)
+                const matchSearch = search === '' || 
+                                   valTitol.includes(search) || 
+                                   valDesc.includes(search) || 
+                                   arrayKeywords.some(k => k.includes(search));
+
+                // 2. Filtre de Curs
+                const itemCurs = getFieldValue(item, ['curs']).toLowerCase();
+                const matchCurs = cursFilter === 'Tots' || itemCurs === cursFilter.toLowerCase();
                 
-                // Filtre de paraula clau CASE-INSENSITIVE
-                const matchKw = keywordFilter === 'Totes' || extractKeywords(item).some(k => k.toLowerCase() === keywordFilter.toLowerCase());
+                // 3. Filtre de Material
+                const itemMat = getFieldValue(item, ['material']).toLowerCase();
+                const matchMat = materialFilter === 'Tots' || itemMat === materialFilter.toLowerCase();
+                
+                // 4. Filtre de Paraula Clau específica (desplegable)
+                const matchKw = keywordFilter === 'Totes' || arrayKeywords.includes(keywordFilter.toLowerCase());
                 
                 return matchSearch && matchCurs && matchMat && matchKw;
             });
@@ -154,7 +164,7 @@
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 space-y-6">
                         <div className="relative">
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch /></div>
-                            <input type="text" placeholder="Cerca per títol, descripció o tema..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"/>
+                            <input type="text" placeholder="Cerca per part de paraula (ex: 'robot' o 'bot')..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"/>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
