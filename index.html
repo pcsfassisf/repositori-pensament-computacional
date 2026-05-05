@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banc de Recursos de Pensament Computacional</title>
+    <!-- Tailwind CSS per als estils -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React i ReactDOM per a la funcionalitat -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        .card-img-container { height: 200px; background-color: #f8fafc; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-custom {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // ============================================================================
+        // CONFIGURACIÓ PRINCIPAL
+        // ============================================================================
+        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLUvs58gs5bzhcQ3LV-fQ9g9O2-bt2X7yBqGIY1wIWbymqFhnqYZOuDHpjpFS9CzaxHesJe4hMEDZY/pub?gid=0&single=true&output=csv"; 
+
+        // Icones SVG
+        const IconBook = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
+        const IconRefresh = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>;
+        const IconTag = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>;
+        const IconFilter = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+        const IconPackage = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
+        const IconSearch = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
+
+        function App() {
+            const [data, setData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [refreshing, setRefreshing] = useState(false);
+
+            // Estats dels filtres
+            const [searchTerm, setSearchTerm] = useState('');
+            const [cursFilter, setCursFilter] = useState('Tots');
+            const [keywordFilter, setKeywordFilter] = useState('Totes');
+            const [materialFilter, setMaterialFilter] = useState('Tots');
+
+            const getFieldValue = (item, possibleNames) => {
+                if (!item) return '';
+                const keys = Object.keys(item);
+                for (let name of possibleNames) {
+                    const exactKey = keys.find(k => k.toLowerCase() === name.toLowerCase());
+                    if (exactKey) return item[exactKey];
+                }
+                return '';
+            };
+
+            const extractKeywords = (item) => {
+                const raw = getFieldValue(item, ['paraula clau', 'paraules clau', 'etiquetes']);
+                if (!raw) return [];
+                return raw.split(/[,;\n]/).map(kw => kw.trim()).filter(kw => kw.length > 0);
+            };
+
+            const formatImageUrl = (url) => {
+                if (!url) return null;
+                let cleanUrl = url.trim();
+                const driveMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/) || cleanUrl.match(/open\?id=([a-zA-Z0-9_-]+)/);
+                
+                if (cleanUrl.includes('drive.google.com') && driveMatch) {
+                    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
+                }
+                return cleanUrl;
+            };
+
+            const parseCSV = (str) => {
+                const arr = [];
+                let quote = false;  
+                let col = 0, row = 0;
+                for (let c = 0; c < str.length; c++) {
+                    let cc = str[c], nc = str[c+1];
+                    arr[row] = arr[row] || [];
+                    arr[row][col] = arr[row][col] || '';
+                    if (cc === '"' && quote && nc === '"') { arr[row][col] += cc; ++c; continue; }
+                    if (cc === '"') { quote = !quote; continue; }
+                    if (cc === ',' && !quote) { ++col; continue; }
+                    if (cc === '\r' && nc === '\n' && !quote) { ++row; col = 0; ++c; continue; }
+                    if (cc === '\n' && !quote) { ++row; col = 0; continue; }
+                    arr[row][col] += cc;
+                }
+                const headers = arr[0].map(h => h.trim());
+                return arr.slice(1).map(row => {
+                    const obj = {};
+                    headers.forEach((h, i) => obj[h] = row[i] ? row[i].trim() : '');
+                    return obj;
+                }).filter(o => Object.values(o).some(v => v !== ''));
+            };
+
+            const fetchData = async () => {
+                setRefreshing(true);
+                try {
+                    const response = await fetch(`${SHEET_CSV_URL}&t=${new Date().getTime()}`);
+                    const csvText = await response.text();
+                    setData(parseCSV(csvText));
+                } catch (err) {
+                    console.error("Error carregant dades");
+                } finally {
+                    setLoading(false);
+                    setRefreshing(false);
+                }
+            };
+
+            useEffect(() => { fetchData(); }, []);
+
+            const optionsCurs = useMemo(() => ['Tots', ...new Set(data.map(i => getFieldValue(i, ['curs', 'nivell'])).filter(Boolean))].sort(), [data]);
+            const optionsMaterial = useMemo(() => ['Tots', ...new Set(data.map(i => getFieldValue(i, ['material'])).filter(Boolean))].sort(), [data]);
+            const optionsParaulesClau = useMemo(() => {
+                const kws = new Set();
+                data.forEach(i => extractKeywords(i).forEach(k => kws.add(k)));
+                return ['Totes', ...Array.from(kws).sort()];
+            }, [data]);
+
+            const filteredData = data.filter(item => {
+                const valTitol = getFieldValue(item, ['titol', 'títol']).toLowerCase();
+                const valDesc = getFieldValue(item, ['descripcio', 'descripció']).toLowerCase();
+                const valKws = extractKeywords(item).join(' ').toLowerCase();
+                const search = searchTerm.toLowerCase();
+
+                const matchSearch = search === '' || valTitol.includes(search) || valDesc.includes(search) || valKws.includes(search);
+                const matchCurs = cursFilter === 'Tots' || getFieldValue(item, ['curs']).toLowerCase() === cursFilter.toLowerCase();
+                const matchMat = materialFilter === 'Tots' || getFieldValue(item, ['material']).toLowerCase() === materialFilter.toLowerCase();
+                const matchKw = keywordFilter === 'Totes' || extractKeywords(item).some(k => k.toLowerCase() === keywordFilter.toLowerCase());
+                
+                return matchSearch && matchCurs && matchMat && matchKw;
+            });
+
+            return (
+                <div className="p-4 max-w-6xl mx-auto">
+                    <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="text-center md:text-left">
+                            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3 justify-center md:justify-start">
+                                <IconBook /> Banc de Recursos
+                            </h1>
+                            <p className="text-indigo-100 opacity-90 text-sm">CC Sant Francesc d'Assís - Ferreries</p>
+                        </div>
+                        <button 
+                            onClick={fetchData} 
+                            disabled={refreshing}
+                            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+                        >
+                            <IconRefresh className={refreshing ? 'animate-spin-custom' : ''} />
+                            {refreshing ? 'Sincronitzant...' : 'Sincronitzar'}
+                        </button>
+                    </header>
+
+                    {/* Zona de Cerques i Filtres */}
+                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 space-y-6">
+                        {/* Camp de cerca principal */}
+                        <div className="relative">
+                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <IconSearch />
+                            </div>
+                            <input 
+                                type="text"
+                                placeholder="Cerca per títol, descripció o tema..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition-all"
+                            />
+                        </div>
+
+                        {/* Filtres desplegables */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider"><IconTag /> Paraula Clau</label>
+                                <select value={keywordFilter} onChange={e => setKeywordFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    {optionsParaulesClau.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider"><IconFilter /> Curs</label>
+                                <select value={cursFilter} onChange={e => setCursFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    {optionsCurs.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider"><IconPackage /> Material</label>
+                                <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                                    {optionsMaterial.map(o => <option key={o} value={o}>{o}</option>)}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                            <IconRefresh className="animate-spin-custom w-12 h-12 mb-4 text-indigo-500" />
+                            <p className="font-medium">Carregant recursos educatius...</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="mb-4 text-sm text-slate-500 font-medium">
+                                S'han trobat <span className="text-indigo-600">{filteredData.length}</span> recursos
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredData.map((item, idx) => (
+                                    <div key={idx} className="bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-300">
+                                        {getFieldValue(item, ['foto', 'imatge']) && (
+                                            <div className="card-img-container flex items-center justify-center p-4 bg-slate-50 border-b relative">
+                                                <img 
+                                                    src={formatImageUrl(getFieldValue(item, ['foto', 'imatge']))} 
+                                                    className="max-w-full max-h-full object-contain"
+                                                    alt="Portada"
+                                                    onError={(e) => {
+                                                        if (!e.target.dataset.triedBackup) {
+                                                            const driveIdMatch = e.target.src.match(/id=([a-zA-Z0-9_-]+)/);
+                                                            if (driveIdMatch) {
+                                                                e.target.dataset.triedBackup = "true";
+                                                                e.target.src = `https://drive.google.com/uc?export=view&id=${driveIdMatch[1]}`;
+                                                            }
+                                                        } else {
+                                                            e.target.parentElement.style.display='none';
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <div className="flex flex-wrap gap-2 mb-3">
+                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase tracking-tight">{getFieldValue(item, ['curs'])}</span>
+                                                {getFieldValue(item, ['material']) && <span className="text-[10px] font-bold px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full uppercase tracking-tight">{getFieldValue(item, ['material'])}</span>}
+                                            </div>
+                                            <h3 className="font-bold text-lg mb-2 text-slate-800 leading-tight">{getFieldValue(item, ['titol', 'títol'])}</h3>
+                                            <p className="text-slate-600 text-sm mb-4 line-clamp-3 leading-relaxed flex-1">{getFieldValue(item, ['descripcio', 'descripció'])}</p>
+                                            <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
+                                                {extractKeywords(item).map(k => (
+                                                    <span key={k} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">#{k}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {getFieldValue(item, ['enllaç', 'url']) && (
+                                            <a href={getFieldValue(item, ['enllaç', 'url'])} target="_blank" className="block p-3.5 text-center bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors uppercase tracking-widest">
+                                                Veure recurs
+                                            </a>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            {filteredData.length === 0 && (
+                                <div className="text-center py-20 bg-white rounded-xl border border-dashed border-slate-300">
+                                    <IconSearch className="mx-auto w-12 h-12 text-slate-300 mb-4" />
+                                    <p className="text-slate-500 font-medium">No s'ha trobat cap recurs que coincideixi amb la cerca.</p>
+                                    <button onClick={() => {setSearchTerm(''); setCursFilter('Tots'); setKeywordFilter('Totes'); setMaterialFilter('Tots');}} className="mt-4 text-indigo-600 text-sm font-bold hover:underline">Neteja tots els filtres</button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
