@@ -30,6 +30,7 @@
 
         // ============================================================================
         // CONFIGURACIÓ PRINCIPAL
+        // Aquest és el teu enllaç real de dades del Google Sheets (.csv)
         // ============================================================================
         const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLUvs58gs5bzhcQ3LV-fQ9g9O2-bt2X7yBqGIY1wIWbymqFhnqYZOuDHpjpFS9CzaxHesJe4hMEDZY/pub?gid=0&single=true&output=csv"; 
 
@@ -46,7 +47,7 @@
             const [loading, setLoading] = useState(true);
             const [refreshing, setRefreshing] = useState(false);
 
-            // Estats dels filtres
+            // Estats per als filtres
             const [searchTerm, setSearchTerm] = useState('');
             const [cursFilter, setCursFilter] = useState('Tots');
             const [keywordFilter, setKeywordFilter] = useState('Totes');
@@ -142,17 +143,20 @@
 
             return (
                 <div className="p-4 max-w-6xl mx-auto">
-                    <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="text-center md:text-left">
-                            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-3 justify-center md:justify-start">
-                                <IconBook /> Banc de Recursos
+                    <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col md:flex-row justify-between items-center gap-4 text-center md:text-left">
+                        <div>
+                            <h1 className="text-3xl md:text-4xl font-extrabold flex items-center gap-3 justify-center md:justify-start uppercase tracking-wide">
+                                <IconBook className="flex-shrink-0" /> PENSAMENT COMPUTACIONAL
                             </h1>
-                            <p className="text-indigo-100 opacity-90 text-sm">CC Sant Francesc d'Assís - Ferreries</p>
+                            <h2 className="text-xl md:text-2xl font-medium text-indigo-200 mt-2">
+                                Banc de Recursos
+                            </h2>
+                            <p className="text-indigo-100 opacity-90 text-sm mt-1">CC Sant Francesc d'Assís - Ferreries</p>
                         </div>
                         <button 
                             onClick={fetchData} 
                             disabled={refreshing}
-                            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+                            className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 px-4 py-2 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 mx-auto md:mx-0"
                         >
                             <IconRefresh className={refreshing ? 'animate-spin-custom' : ''} />
                             {refreshing ? 'Sincronitzant...' : 'Sincronitzar'}
@@ -263,6 +267,29 @@
                             )}
                         </>
                     )}
+
+                    {/* Peu de pàgina (Footer) */}
+                    <footer className="mt-16 pt-8 pb-4 border-t border-slate-200 text-center text-sm text-slate-500">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="text-center md:text-left">
+                                <p className="font-bold text-slate-700">© {new Date().getFullYear()} CC Sant Francesc d'Assís</p>
+                                <p className="text-xs mt-1">Ferreries, Illes Balears</p>
+                            </div>
+                            
+                            <div className="flex flex-wrap justify-center gap-4 text-xs font-medium">
+                                <a href="http://www.sfassisf.com" className="hover:text-indigo-600 transition-colors">Web del centre</a>
+                                <span className="text-slate-300 hidden sm:inline">|</span>
+                                <a href="mailto:sfassisf@sfassisf.com" className="hover:text-indigo-600 transition-colors">Contacte</a>
+                            </div>
+                            
+                            <div className="text-center md:text-right text-xs">
+                                <p>Recursos compartits sota llicència</p>
+                                <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ca" target="_blank" rel="noopener noreferrer" className="font-bold text-slate-600 hover:text-indigo-600 hover:underline transition-colors mt-0.5 inline-block">
+                                    Creative Commons BY-NC-SA
+                                </a>
+                            </div>
+                        </div>
+                    </footer>
                 </div>
             );
         }
