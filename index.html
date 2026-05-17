@@ -27,9 +27,8 @@
         const { useState, useEffect, useMemo } = React;
 
         // ==========================================
-        // CONFIGURACIÓ DE SEGURETAT I ENLLAÇOS
+        // CONFIGURACIÓ D'ENLLAÇOS
         // ==========================================
-        const ACCESS_CODE = "1234"; 
         
         // 1. Enganxa aquí l'enllaç del FULL 1 (El teu original)
         const SHEET_CSV_URL_1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLUvs58gs5bzhcQ3LV-fQ9g9O2-bt2X7yBqGIY1wIWbymqFhnqYZOuDHpjpFS9CzaxHesJe4hMEDZY/pub?gid=0&single=true&output=csv"; 
@@ -49,10 +48,6 @@
         const IconInfo = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
 
         function App() {
-            // TEMPORALMENT DESACTIVAT: Canviem 'false' per 'false'
-            const [isAuthenticated, setIsAuthenticated] = useState(true);
-            const [inputCode, setInputCode] = useState('');
-            const [authError, setAuthError] = useState(false);
             const [showHelp, setShowHelp] = useState(false);
             
             const [data, setData] = useState([]);
@@ -63,27 +58,9 @@
             const [keywordFilter, setKeywordFilter] = useState('Totes');
             const [materialFilter, setMaterialFilter] = useState('Tots');
 
-            // TEMPORALMENT DESACTIVAT: Fem que carregui dades directament sense comprovar la sessió
-           useEffect(() => {
-    const savedAuth = sessionStorage.getItem('pc_auth');
-    if (savedAuth === 'true') {
-        setIsAuthenticated(true);
-        fetchData();
-    }
-}, []);
-
-            const handleLogin = (e) => {
-                e.preventDefault();
-                if (inputCode === ACCESS_CODE) {
-                    setIsAuthenticated(true);
-                    setAuthError(false);
-                    sessionStorage.setItem('pc_auth', 'true');
-                    fetchData();
-                } else {
-                    setAuthError(true);
-                    setInputCode('');
-                }
-            };
+            useEffect(() => {
+                fetchData();
+            }, []);
 
             const getFieldValue = (item, possibleNames) => {
                 if (!item) return '';
@@ -106,7 +83,8 @@
                 let cleanUrl = url.trim();
                 const driveMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/) || cleanUrl.match(/open\?id=([a-zA-Z0-9_-]+)/);
                 if (cleanUrl.includes('drive.google.com') && driveMatch) {
-                    return `https://drive.google.com/thumbnail?id=${driveMatch[1]}&sz=w1000`;
+                    // TRUC: Fem servir el servidor intern (lh3.googleusercontent.com) per evitar el bloqueig
+                    return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
                 }
                 return cleanUrl;
             };
@@ -194,24 +172,6 @@
                 return matchSearch && matchCurs && matchMat && matchKw;
             });
 
-            if (!isAuthenticated) {
-                return (
-                    <div className="min-h-screen flex items-center justify-center bg-indigo-900 p-6">
-                        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
-                            <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
-                                <IconLock />
-                            </div>
-                            <h1 className="text-2xl font-bold text-slate-800 mb-2">Accés Protegit</h1>
-                            <p className="text-slate-500 text-sm mb-8">Introduïu el codi per accedir al Banc de Recursos.</p>
-                            <form onSubmit={handleLogin} className="space-y-4">
-                                <input type="password" placeholder="Codi d'accés" autoFocus value={inputCode} onChange={(e) => setInputCode(e.target.value)} className={`w-full px-4 py-3 border rounded-xl text-center text-lg tracking-widest outline-none transition-all ${authError ? 'border-red-500 bg-red-50' : 'border-slate-200 focus:border-indigo-500 bg-slate-50'}`}/>
-                                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">ENTRAR</button>
-                            </form>
-                        </div>
-                    </div>
-                );
-            }
-
             return (
                 <div className="p-4 max-w-6xl mx-auto min-h-screen">
                     <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col lg:flex-row justify-between items-center gap-6 text-center lg:text-left">
@@ -285,30 +245,50 @@
                             <p>Carregant recursos...</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredData.map((item, idx) => (
-                                <div key={idx} className="resource-card bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
-                                    {getFieldValue(item, ['foto', 'imatge']) && (
-                                        <div className="card-img-container flex items-center justify-center p-4 bg-slate-50 border-b relative">
-                                            <img src={formatImageUrl(getFieldValue(item, ['foto', 'imatge']))} className="max-w-full max-h-full object-contain" alt="Portada" onError={(e) => e.target.parentElement.style.display='none'}/>
+                        <>
+                            <div className="mb-4 text-sm text-slate-500 font-medium">
+                                S'han trobat <span className="text-indigo-600 font-bold">{filteredData.length}</span> recursos
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {filteredData.map((item, idx) => (
+                                    <div key={idx} className="resource-card bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
+                                        {getFieldValue(item, ['foto', 'imatge']) && (
+                                            <div className="card-img-container flex items-center justify-center p-4 bg-slate-50 border-b relative">
+                                                <img 
+                                                    src={formatImageUrl(getFieldValue(item, ['foto', 'imatge']))} 
+                                                    className="max-w-full max-h-full object-contain" 
+                                                    alt="Portada" 
+                                                    referrerPolicy="no-referrer"
+                                                    onError={(e) => {
+                                                        const originalUrl = getFieldValue(item, ['foto', 'imatge']);
+                                                        const driveIdMatch = originalUrl.match(/([a-zA-Z0-9_-]{25,})/);
+                                                        if (driveIdMatch && !e.target.dataset.tried) {
+                                                            e.target.dataset.tried = "true";
+                                                            e.target.src = `https://drive.google.com/thumbnail?id=${driveIdMatch[0]}&sz=w1000`;
+                                                        } else { 
+                                                            e.target.parentElement.style.display='none'; 
+                                                        }
+                                                    }}
+                                                />
+                                            </div>
+                                        )}
+                                        <div className="p-5 flex-1 flex flex-col">
+                                            <div className="flex gap-2 mb-3">
+                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">{getFieldValue(item, ['curs'])}</span>
+                                            </div>
+                                            <h3 className="font-bold text-lg mb-2 text-slate-800">{getFieldValue(item, ['titol', 'títol'])}</h3>
+                                            <p className="text-slate-600 text-sm mb-4 flex-1 whitespace-pre-wrap">{getFieldValue(item, ['descripcio', 'descripció'])}</p>
+                                            <div className="flex flex-wrap gap-1 mt-auto">
+                                                {extractKeywords(item).map(k => <span key={k} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">#{k}</span>)}
+                                            </div>
                                         </div>
-                                    )}
-                                    <div className="p-5 flex-1 flex flex-col">
-                                        <div className="flex gap-2 mb-3">
-                                            <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">{getFieldValue(item, ['curs'])}</span>
-                                        </div>
-                                        <h3 className="font-bold text-lg mb-2 text-slate-800">{getFieldValue(item, ['titol', 'títol'])}</h3>
-                                        <p className="text-slate-600 text-sm mb-4 flex-1 whitespace-pre-wrap">{getFieldValue(item, ['descripcio', 'descripció'])}</p>
-                                        <div className="flex flex-wrap gap-1 mt-auto">
-                                            {extractKeywords(item).map(k => <span key={k} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">#{k}</span>)}
-                                        </div>
+                                        {getFieldValue(item, ['enllaç', 'url']) && (
+                                            <a href={getFieldValue(item, ['enllaç', 'url'])} target="_blank" className="block p-4 text-center bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors uppercase tracking-widest">Veure recurs</a>
+                                        )}
                                     </div>
-                                    {getFieldValue(item, ['enllaç', 'url']) && (
-                                        <a href={getFieldValue(item, ['enllaç', 'url'])} target="_blank" className="block p-4 text-center bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors uppercase tracking-widest">Veure recurs</a>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        </>
                     )}
                 </div>
             );
