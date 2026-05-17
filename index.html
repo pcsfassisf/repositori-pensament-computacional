@@ -49,7 +49,7 @@
         const IconInfo = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
 
         function App() {
-            // TEMPORALMENT DESACTIVAT: Canviem 'false' per 'true'
+            // TEMPORALMENT DESACTIVAT: Canviem 'false' per 'false'
             const [isAuthenticated, setIsAuthenticated] = useState(true);
             const [inputCode, setInputCode] = useState('');
             const [authError, setAuthError] = useState(false);
@@ -64,9 +64,13 @@
             const [materialFilter, setMaterialFilter] = useState('Tots');
 
             // TEMPORALMENT DESACTIVAT: Fem que carregui dades directament sense comprovar la sessió
-            useEffect(() => {
-                fetchData();
-            }, []);
+           useEffect(() => {
+    const savedAuth = sessionStorage.getItem('pc_auth');
+    if (savedAuth === 'true') {
+        setIsAuthenticated(true);
+        fetchData();
+    }
+}, []);
 
             const handleLogin = (e) => {
                 e.preventDefault();
