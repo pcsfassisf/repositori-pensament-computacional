@@ -27,17 +27,15 @@
         const { useState, useEffect, useMemo } = React;
 
         // ==========================================
-        // CONFIGURACIÓ D'ENLLAÇOS
+        // CONFIGURACIÓ DE SEGURETAT I ENLLAÇOS
         // ==========================================
+        const ACCESS_CODE = "1234"; 
         
-        // 1. Enganxa aquí l'enllaç del FULL 1 (El teu original)
+        // L'enllaç del teu full de càlcul principal (on copiaràs les dades validades)
         const SHEET_CSV_URL_1 = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRLUvs58gs5bzhcQ3LV-fQ9g9O2-bt2X7yBqGIY1wIWbymqFhnqYZOuDHpjpFS9CzaxHesJe4hMEDZY/pub?gid=0&single=true&output=csv"; 
         
-        // 2. Enganxa aquí l'enllaç de les RESPOSTES DEL FORMULARI
-        const SHEET_CSV_URL_2 = ""; // <-- Posa l'enllaç del nou full aquí
-        
-        // Substitueix aquest enllaç pel teu enllaç de Google Form (botó 'Enviar' -> enllaç)
-        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSdCl8LrYubCWqt3-LDkjlI75FgkgX-rRsLRpRlzMJEDSmdHGw/viewform?usp=dialog";
+        // Enllaç al teu formulari de Google de pujada de recursos
+        const GOOGLE_FORM_URL = "https://docs.google.com/forms/d/e/vostre-id-de-formulari/viewform";
 
         // Icones SVG
         const IconBook = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>;
@@ -46,10 +44,20 @@
         const IconSearch = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>;
         const IconPlus = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
         const IconInfo = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>;
+        
+        // Noves icones per als desplegables
+        const IconTag = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>;
+        const IconFilter = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>;
+        const IconPackage = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>;
 
         function App() {
+            // Estats d'autenticació
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
+            const [inputCode, setInputCode] = useState('');
+            const [authError, setAuthError] = useState(false);
             const [showHelp, setShowHelp] = useState(false);
             
+            // Estats dades i filtres
             const [data, setData] = useState([]);
             const [loading, setLoading] = useState(true);
             const [refreshing, setRefreshing] = useState(false);
@@ -58,9 +66,28 @@
             const [keywordFilter, setKeywordFilter] = useState('Totes');
             const [materialFilter, setMaterialFilter] = useState('Tots');
 
+            // Comprovar si ja s'havia autenticat abans durant aquesta sessió
             useEffect(() => {
-                fetchData();
+                const savedAuth = sessionStorage.getItem('pc_auth');
+                if (savedAuth === 'true') {
+                    setIsAuthenticated(true);
+                    fetchData();
+                }
             }, []);
+
+            // Validar la contrasenya escrita
+            const handleLogin = (e) => {
+                e.preventDefault();
+                if (inputCode === ACCESS_CODE) {
+                    setIsAuthenticated(true);
+                    setAuthError(false);
+                    sessionStorage.setItem('pc_auth', 'true');
+                    fetchData();
+                } else {
+                    setAuthError(true);
+                    setInputCode('');
+                }
+            };
 
             const getFieldValue = (item, possibleNames) => {
                 if (!item) return '';
@@ -83,7 +110,6 @@
                 let cleanUrl = url.trim();
                 const driveMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || cleanUrl.match(/id=([a-zA-Z0-9_-]+)/) || cleanUrl.match(/open\?id=([a-zA-Z0-9_-]+)/);
                 if (cleanUrl.includes('drive.google.com') && driveMatch) {
-                    // TRUC: Fem servir el servidor intern (lh3.googleusercontent.com) per evitar el bloqueig
                     return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
                 }
                 return cleanUrl;
@@ -112,33 +138,23 @@
                 }).filter(o => Object.values(o).some(v => v !== ''));
             };
 
-            // NOVA FUNCIÓ PER LLEGIR ELS DOS FULLS I BARREJAR-LOS
             const fetchData = async () => {
                 setRefreshing(true);
                 try {
                     let totesLesActivitats = [];
 
-                    // Descarreguem el Full 1 (Original)
+                    // Sempre carreguem només el Full 1 (el que tu gestiones manualment)
                     if (SHEET_CSV_URL_1) {
                         const response1 = await fetch(`${SHEET_CSV_URL_1}&t=${new Date().getTime()}`);
                         if (response1.ok) {
                             const csvText1 = await response1.text();
-                            totesLesActivitats = [...totesLesActivitats, ...parseCSV(csvText1)];
-                        }
-                    }
-
-                    // Descarreguem el Full 2 (Respostes del formulari)
-                    if (SHEET_CSV_URL_2) {
-                        const response2 = await fetch(`${SHEET_CSV_URL_2}&t=${new Date().getTime()}`);
-                        if (response2.ok) {
-                            const csvText2 = await response2.text();
-                            totesLesActivitats = [...totesLesActivitats, ...parseCSV(csvText2)];
+                            totesLesActivitats = [...parseCSV(csvText1)];
                         }
                     }
 
                     setData(totesLesActivitats);
                 } catch (err) {
-                    console.error("Error carregant dades dels fulls de càlcul");
+                    console.error("Error carregant dades del full de càlcul");
                 } finally {
                     setLoading(false);
                     setRefreshing(false);
@@ -172,124 +188,202 @@
                 return matchSearch && matchCurs && matchMat && matchKw;
             });
 
-            return (
-                <div className="p-4 max-w-6xl mx-auto min-h-screen">
-                    <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col lg:flex-row justify-between items-center gap-6 text-center lg:text-left">
-                        <div className="flex-1">
-                            <h1 className="text-3xl md:text-4xl font-extrabold flex items-center gap-3 justify-center lg:justify-start uppercase tracking-wide">
-                                <IconBook className="flex-shrink-0" /> PENSAMENT COMPUTACIONAL
-                            </h1>
-                            <h2 className="text-xl md:text-2xl font-medium text-indigo-200 mt-2">Banc de Recursos</h2>
-                            <p className="text-indigo-100 opacity-90 text-sm mt-1">CC Sant Francesc d'Assís - Ferreries</p>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2 items-center lg:items-end">
-                            <div className="flex flex-wrap justify-center gap-3">
-                                <a 
-                                    href={GOOGLE_FORM_URL} 
-                                    target="_blank" 
-                                    className="flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 px-5 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 shadow-md"
-                                >
-                                    <IconPlus />
-                                    Afegir Recurs
-                                </a>
-                                <button 
-                                    onClick={fetchData} 
-                                    disabled={refreshing} 
-                                    className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 shadow-md"
-                                >
-                                    <IconRefresh className={refreshing ? 'animate-spin-custom' : ''} />
-                                    {refreshing ? 'Sincronitzant...' : 'Sincronitzar'}
-                                </button>
+            // Pantalla d'accés de seguretat (si no s'ha iniciat sessió)
+            if (!isAuthenticated) {
+                return (
+                    <div className="min-h-screen flex items-center justify-center bg-indigo-900 p-6">
+                        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
+                            <div className="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6 text-indigo-600">
+                                <IconLock />
                             </div>
-                            <button 
-                                onClick={() => setShowHelp(!showHelp)}
-                                className="text-xs text-indigo-200 hover:text-white flex items-center gap-1 mt-1 underline decoration-dotted"
-                            >
-                                <IconInfo /> Com puc compartir un recurs?
-                            </button>
-                        </div>
-                    </header>
-
-                    {showHelp && (
-                        <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-xl mb-8 text-sm text-amber-900 shadow-inner">
-                            <p className="font-bold mb-2">Instruccions per al formulari:</p>
-                            <ul className="list-disc ml-5 space-y-1">
-                                <li><strong>Enllaç del recurs:</strong> Copia l'adreça de la web, del PDF o del document que vulguis compartir.</li>
-                                <li><strong>Enllaç de la imatge:</strong> Puja la foto al teu Google Drive, fes clic dret &gt; "Compartir" &gt; Canvia a "Tothom amb l'enllaç" i copia l'enllaç. La web s'encarrega de fer-la visible!</li>
-                            </ul>
-                        </div>
-                    )}
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 space-y-6">
-                        <div className="relative">
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch /></div>
-                            <input type="text" placeholder="Cerca un recurs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"/>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <select value={keywordFilter} onChange={e => setKeywordFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                                {optionsParaulesClau.map(o => <option key={o} value={o}>{o}</option>)}
-                            </select>
-                            <select value={cursFilter} onChange={e => setCursFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                                {optionsCurs.map(o => <option key={o} value={o}>{o}</option>)}
-                            </select>
-                            <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
-                                {optionsMaterial.map(o => <option key={o} value={o}>{o}</option>)}
-                            </select>
+                            <h1 className="text-2xl font-bold text-slate-800 mb-2">Accés Protegit</h1>
+                            <p className="text-slate-500 text-sm mb-8">Introduïu el codi per accedir al Banc de Recursos de Pensament Computacional.</p>
+                            
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <input 
+                                    type="password" 
+                                    placeholder="Codi d'accés" 
+                                    autoFocus
+                                    value={inputCode}
+                                    onChange={(e) => setInputCode(e.target.value)}
+                                    className={`w-full px-4 py-3 border rounded-xl text-center text-lg tracking-widest outline-none transition-all ${authError ? 'border-red-500 bg-red-50 text-red-700 font-bold' : 'border-slate-200 focus:border-indigo-500 bg-slate-50'}`}
+                                />
+                                {authError && <p className="text-red-500 text-xs font-bold uppercase tracking-tight">Codi incorrecte</p>}
+                                <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">
+                                    ENTRAR
+                                </button>
+                            </form>
                         </div>
                     </div>
+                );
+            }
 
-                    {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 italic">
-                            <IconRefresh className="animate-spin-custom w-10 h-10 mb-4" />
-                            <p>Carregant recursos...</p>
+            // Contingut principal de l'aplicació
+            return (
+                <div className="p-4 max-w-6xl mx-auto min-h-screen flex flex-col justify-between">
+                    <div>
+                        <header className="bg-indigo-600 text-white p-6 rounded-xl shadow-lg mb-8 flex flex-col lg:flex-row justify-between items-center gap-6 text-center lg:text-left">
+                            <div className="flex-1">
+                                <h1 className="text-3xl md:text-4xl font-extrabold flex items-center gap-3 justify-center lg:justify-start uppercase tracking-wide">
+                                    <IconBook className="flex-shrink-0" /> PENSAMENT COMPUTACIONAL
+                                </h1>
+                                <h2 className="text-xl md:text-2xl font-medium text-indigo-200 mt-2">Banc de Recursos</h2>
+                                <p className="text-indigo-100 opacity-90 text-sm mt-1">CC Sant Francesc d'Assís - Ferreries</p>
+                            </div>
+                            
+                            <div className="flex flex-col gap-2 items-center lg:items-end">
+                                <div className="flex flex-wrap justify-center gap-3">
+                                    <a 
+                                        href={GOOGLE_FORM_URL} 
+                                        target="_blank" 
+                                        className="flex items-center gap-2 bg-white text-indigo-700 hover:bg-indigo-50 px-5 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 shadow-md"
+                                    >
+                                        <IconPlus />
+                                        Afegir Recurs
+                                    </a>
+                                    <button 
+                                        onClick={fetchData} 
+                                        disabled={refreshing} 
+                                        className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white px-5 py-2.5 rounded-lg font-bold text-sm transition-all active:scale-95 disabled:opacity-50 shadow-md"
+                                    >
+                                        <IconRefresh className={refreshing ? 'animate-spin-custom' : ''} />
+                                        {refreshing ? 'Sincronitzant...' : 'Sincronitzar'}
+                                    </button>
+                                </div>
+                                <button 
+                                    onClick={() => setShowHelp(!showHelp)}
+                                    className="text-xs text-indigo-200 hover:text-white flex items-center gap-1 mt-1 underline decoration-dotted"
+                                >
+                                    <IconInfo /> Com puc compartir un recurs?
+                                </button>
+                            </div>
+                        </header>
+
+                        {showHelp && (
+                            <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-xl mb-8 text-sm text-amber-900 shadow-inner">
+                                <p className="font-bold mb-2">Instruccions per al formulari:</p>
+                                <ul className="list-disc ml-5 space-y-1">
+                                    <li><strong>Autenticació:</strong> Només els docents del centre poden pujar un recurs.</li>
+                                    <li><strong>Enllaç del recurs:</strong> Copia l'adreça de la web, del PDF o del document que vulguis compartir.</li>
+                                    <li><strong>Enllaç de la imatge:</strong> Puja la foto a la unitat compartida de Pensament Computacional i a la carpeta corresponent, fes clic dret &gt; "Compartir" &gt; Canvia a "Tothom amb l'enllaç" i copia l'enllaç. La web s'encarrega de fer-la visible!</li>
+                                    <li><strong>Revisió:</strong> Quan l'haguem pogut revisar,es penjarà. </li>
+                                    <li><strong>Gràcies!</strong>  </li>
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-8 space-y-6">
+                            <div className="relative">
+                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"><IconSearch /></div>
+                                <input type="text" placeholder="Cerca un recurs..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-xl bg-slate-50 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"/>
+                            </div>
+                            
+                            {/* Desplegables millorats amb petits títols i icones */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider">
+                                        <IconTag className="text-slate-400" /> Paraula Clau
+                                    </label>
+                                    <select value={keywordFilter} onChange={e => setKeywordFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                        {optionsParaulesClau.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider">
+                                        <IconFilter className="text-slate-400" /> Cicle
+                                    </label>
+                                    <select value={cursFilter} onChange={e => setCursFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                        {optionsCurs.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold uppercase text-slate-500 mb-1.5 block flex items-center gap-1 tracking-wider">
+                                        <IconPackage className="text-slate-400" /> Material
+                                    </label>
+                                    <select value={materialFilter} onChange={e => setMaterialFilter(e.target.value)} className="w-full p-2.5 border border-slate-200 rounded-lg bg-white text-sm focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer">
+                                        {optionsMaterial.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                    ) : (
-                        <>
-                            <div className="mb-4 text-sm text-slate-500 font-medium">
-                                S'han trobat <span className="text-indigo-600 font-bold">{filteredData.length}</span> recursos
+
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-slate-400 italic">
+                                <IconRefresh className="animate-spin-custom w-10 h-10 mb-4" />
+                                <p>Carregant recursos...</p>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {filteredData.map((item, idx) => (
-                                    <div key={idx} className="resource-card bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
-                                        {getFieldValue(item, ['foto', 'imatge']) && (
-                                            <div className="card-img-container flex items-center justify-center p-4 bg-slate-50 border-b relative">
-                                                <img 
-                                                    src={formatImageUrl(getFieldValue(item, ['foto', 'imatge']))} 
-                                                    className="max-w-full max-h-full object-contain" 
-                                                    alt="Portada" 
-                                                    referrerPolicy="no-referrer"
-                                                    onError={(e) => {
-                                                        const originalUrl = getFieldValue(item, ['foto', 'imatge']);
-                                                        const driveIdMatch = originalUrl.match(/([a-zA-Z0-9_-]{25,})/);
-                                                        if (driveIdMatch && !e.target.dataset.tried) {
-                                                            e.target.dataset.tried = "true";
-                                                            e.target.src = `https://drive.google.com/thumbnail?id=${driveIdMatch[0]}&sz=w1000`;
-                                                        } else { 
-                                                            e.target.parentElement.style.display='none'; 
-                                                        }
-                                                    }}
-                                                />
+                        ) : (
+                            <>
+                                <div className="mb-4 text-sm text-slate-500 font-medium">
+                                    S'han trobat <span className="text-indigo-600 font-bold">{filteredData.length}</span> recursos
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {filteredData.map((item, idx) => (
+                                        <div key={idx} className="resource-card bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
+                                            {getFieldValue(item, ['foto', 'imatge']) && (
+                                                <div className="card-img-container flex items-center justify-center p-4 bg-slate-50 border-b relative">
+                                                    <img 
+                                                        src={formatImageUrl(getFieldValue(item, ['foto', 'imatge']))} 
+                                                        className="max-w-full max-h-full object-contain" 
+                                                        alt="Portada" 
+                                                        referrerPolicy="no-referrer"
+                                                        onError={(e) => {
+                                                            const originalUrl = getFieldValue(item, ['foto', 'imatge']);
+                                                            const driveIdMatch = originalUrl.match(/([a-zA-Z0-9_-]{25,})/);
+                                                            if (driveIdMatch && !e.target.dataset.tried) {
+                                                                e.target.dataset.tried = "true";
+                                                                e.target.src = `https://drive.google.com/thumbnail?id=${driveIdMatch[0]}&sz=w1000`;
+                                                            } else { 
+                                                                e.target.parentElement.style.display='none'; 
+                                                            }
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="p-5 flex-1 flex flex-col">
+                                                <div className="flex gap-2 mb-3">
+                                                    <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">{getFieldValue(item, ['curs'])}</span>
+                                                </div>
+                                                <h3 className="font-bold text-lg mb-2 text-slate-800">{getFieldValue(item, ['titol', 'títol'])}</h3>
+                                                <p className="text-slate-600 text-sm mb-4 flex-1 whitespace-pre-wrap">{getFieldValue(item, ['descripcio', 'descripció'])}</p>
+                                                <div className="flex flex-wrap gap-1 mt-auto">
+                                                    {extractKeywords(item).map(k => <span key={k} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">#{k}</span>)}
+                                                </div>
                                             </div>
-                                        )}
-                                        <div className="p-5 flex-1 flex flex-col">
-                                            <div className="flex gap-2 mb-3">
-                                                <span className="text-[10px] font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full uppercase">{getFieldValue(item, ['curs'])}</span>
-                                            </div>
-                                            <h3 className="font-bold text-lg mb-2 text-slate-800">{getFieldValue(item, ['titol', 'títol'])}</h3>
-                                            <p className="text-slate-600 text-sm mb-4 flex-1 whitespace-pre-wrap">{getFieldValue(item, ['descripcio', 'descripció'])}</p>
-                                            <div className="flex flex-wrap gap-1 mt-auto">
-                                                {extractKeywords(item).map(k => <span key={k} className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded">#{k}</span>)}
-                                            </div>
+                                            {getFieldValue(item, ['enllaç', 'url']) && (
+                                                <a href={getFieldValue(item, ['enllaç', 'url'])} target="_blank" className="block p-4 text-center bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors uppercase tracking-widest">Veure recurs</a>
+                                            )}
                                         </div>
-                                        {getFieldValue(item, ['enllaç', 'url']) && (
-                                            <a href={getFieldValue(item, ['enllaç', 'url'])} target="_blank" className="block p-4 text-center bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-colors uppercase tracking-widest">Veure recurs</a>
-                                        )}
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* PEU DE PÀGINA INSTITUCIONAL I COL·LABORATIU */}
+                    <footer className="mt-16 pt-8 pb-4 border-t border-slate-200 text-center text-sm text-slate-500">
+                        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                            <div className="text-center md:text-left">
+                                <p className="font-bold text-slate-700">© {new Date().getFullYear()} CC Sant Francesc d'Assís</p>
+                                <p className="text-xs mt-1">Ferreries, Menorca (Illes Balears)</p>
                             </div>
-                        </>
-                    )}
+                            <div className="flex flex-wrap justify-center gap-4 text-xs font-medium">
+                                <a href="#" className="hover:text-indigo-600 transition-colors">Web de l'escola</a>
+                                <span className="text-slate-300 hidden sm:inline">|</span>
+                                <a href="#" className="hover:text-indigo-600 transition-colors">Contacta'ns</a>
+                            </div>
+                            <div className="text-center md:text-right text-xs">
+                                <p>Recursos compartits sota llicència lliure</p>
+                                <a 
+                                    href="https://creativecommons.org/licenses/by-nc-sa/4.0/deed.ca" 
+                                    target="_blank" 
+                                    className="font-bold text-slate-600 hover:text-indigo-600 hover:underline transition-colors mt-0.5 inline-block"
+                                >
+                                    Creative Commons BY-NC-SA
+                                </a>
+                            </div>
+                        </div>
+                    </footer>
                 </div>
             );
         }
