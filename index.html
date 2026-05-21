@@ -52,7 +52,7 @@
 
         function App() {
             // Estats d'autenticació
-            const [isAuthenticated, setIsAuthenticated] = useState(true);
+            const [isAuthenticated, setIsAuthenticated] = useState(false);
             const [inputCode, setInputCode] = useState('');
             const [authError, setAuthError] = useState(false);
             const [showHelp, setShowHelp] = useState(false);
@@ -68,11 +68,11 @@
 
             // Comprovar si ja s'havia autenticat abans durant aquesta sessió
             useEffect(() => {
-                //const savedAuth = sessionStorage.getItem('pc_auth');
-                //if (savedAuth === 'true') {
-                //    setIsAuthenticated(true);
+                const savedAuth = sessionStorage.getItem('pc_auth');
+                if (savedAuth === 'true') {
+                    setIsAuthenticated(true);
                     fetchData();
-                //}
+                }
             }, []);
 
             // Validar la contrasenya escrita
@@ -368,9 +368,9 @@
                                 <p className="text-xs mt-1">Ferreries, Menorca (Illes Balears)</p>
                             </div>
                             <div className="flex flex-wrap justify-center gap-4 text-xs font-medium">
-                                <a href="https://www.sfassisf.com" target:"_blank"className="hover:text-indigo-600 transition-colors">Web de l'escola</a>
+                                <a href="#" className="hover:text-indigo-600 transition-colors">Web de l'escola</a>
                                 <span className="text-slate-300 hidden sm:inline">|</span>
-                                <a href="mailto:sfassisf@sfassisf.com" className="hover:text-indigo-600 transition-colors">Contacta'ns</a>
+                                <a href="#" className="hover:text-indigo-600 transition-colors">Contacta'ns</a>
                             </div>
                             <div className="text-center md:text-right text-xs">
                                 <p>Recursos compartits sota llicència lliure</p>
